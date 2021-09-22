@@ -463,6 +463,23 @@ function create_sysimage(packages::Union{Symbol, Vector{Symbol}}=Symbol[];
                          cpu_target::String=NATIVE_CPU_TARGET,
                          script::Union{Nothing, String}=nothing)
 
+    # Instantiate the project
+    ctx = create_pkg_context(project)
+    @debug "instantiating project at $(repr(project))"
+    Pkg.instantiate(ctx, verbose=true, allow_autoprecomp = false)
+
+    # Read Package Compiler settings from TOML file, if present
+    if "PkgCompSettings" in keys(ctx.env.project.other)
+        PkgCompSettings = ctx.env.project.other["PkgCompSettings"]
+        if "precompile_execution_file" in keys(PkgCompSettings)
+            precompile_execution_file = PkgCompSettings["precompile_execution_file"]
+        end 
+        if "precompile_statements_file" in keys(PkgCompSettings)
+            precompile_statements_file = PkgCompSettings["precompile_statements_file"]
+        end 
+    end
+
+
     precompile_statements_file = abspath.(precompile_statements_file)
     precompile_execution_file = abspath.(precompile_execution_file)
     if replace_default==true
@@ -482,15 +499,11 @@ function create_sysimage(packages::Union{Symbol, Vector{Symbol}}=Symbol[];
         error("must use `incremental=false` to use `filter_stdlibs=true`")
     end
 
+    
     # Functions lower down handles `packages` and precompilation file as arrays so convert here
     packages = string.(vcat(packages)) # Package names are often used as string inside Julia
     precompile_execution_file  = vcat(precompile_execution_file)
     precompile_statements_file = vcat(precompile_statements_file)
-
-    # Instantiate the project
-    ctx = create_pkg_context(project)
-    @debug "instantiating project at $(repr(project))"
-    Pkg.instantiate(ctx, verbose=true, allow_autoprecomp = false)
 
     check_packages_in_project(ctx, packages)
 
